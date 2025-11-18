@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AI Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; /* bg-slate-900 */ }
+    </style>
+</head>
+<body class="text-gray-200 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-lg border border-slate-700">
+        <h1 class="text-3xl font-bold text-center text-white">Client Portal Login</h1>
+        
+        <div>
+            <label for="email" class="block text-sm font-medium text-slate-300">Email address</label>
+            <input id="email" name="email" type="email" required class="mt-1 block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+        
+        <div>
+            <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+            <input id="password" name="password" type="password" required class="mt-1 block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+        
+        <div id="errorMessage" class="hidden text-sm text-red-400"></div>
+
+        <button id="loginButton" class="w-full py-3 px-4 font-bold text-white bg-sky-600 rounded-lg hover:bg-sky-700 transition-all duration-300">
+            Log In
+        </button>
+
+        <p class="text-sm text-center text-slate-400">
+            Need an account? 
+            <a href="signup.html" class="font-medium text-sky-400 hover:text-sky-500">Sign up</a>
+        </p>
+    </div>
+
+    <script>
+        // --- Initialize Firebase ---
+        // !! PASTE YOUR `firebaseConfig` OBJECT HERE !!
+    const firebaseConfig = {
+      apiKey: "AIzaSyA41KMREQqYNRUXmmMLqmnBqMuzchEbQPI",
+      authDomain: "audience-analytics-c4fcc.firebaseapp.com",
+      projectId: "audience-analytics-c4fcc",
+      storageBucket: "audience-analytics-c4fcc.firebasestorage.app",
+      messagingSenderId: "426489718694",
+      appId: "1:426489718694:web:56c0252024c60da9e65167",
+      measurementId: "G-0G4P9JSNCY"
+    };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // --- Get DOM Elements ---
+        const emailEl = document.getElementById('email');
+        const passwordEl = document.getElementById('password');
+        const loginButton = document.getElementById('loginButton');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // --- Login Logic ---
+        loginButton.addEventListener('click', async () => {
+            const email = emailEl.value;
+            const password = passwordEl.value;
+
+            errorMessage.classList.add('hidden'); // Hide old errors
+            
+            try {
+                // 1. Sign in the user
+                await auth.signInWithEmailAndPassword(email, password);
+                
+                // 2. Success! Redirect to the main app (index.html)
+                console.log('Login successful, redirecting to app...');
+                window.location.href = 'index.html';
+
+            } catch (error) {
+                console.error(error);
+                errorMessage.textContent = error.message;
+                errorMessage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Audience Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script> 
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* bg-slate-900 */
+        }
+        /* Frosted glass effect */
+        .card-frosted {
+            background-color: rgba(30, 41, 59, 0.6); /* bg-slate-800 with 60% opacity */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5); /* border-slate-700 with 50% opacity */
+        }
+        .card-dark {
+            background-color: #1e293b; /* bg-slate-800 */
+            border: 1px solid #334155; /* border-slate-700 */
+        }
+        /* Sidebar link styles */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: #94a3b8; /* text-slate-400 */
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #1e293b; /* bg-slate-800 */
+            color: #e2e8f0; /* text-slate-200 */
+        }
+        .nav-link-active {
+            background-color: #0f172a; /* bg-slate-900 */
+            color: #38bdf8; /* text-sky-400 */
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+        /* Animations */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+        .fade-in {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .fade-in-loaded {
+            opacity: 1;
+        }
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 5px rgba(74, 222, 128, 0); }
+        }
+        .status-dot-green {
+            background-color: #4ade80; /* bg-green-400 */
+            animation: pulse-green 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="text-gray-200 flex">
+
+    <aside class="w-64 flex-shrink-0 bg-slate-800 p-4 border-r border-slate-700 h-screen sticky top-0">
+        <h1 class="text-2xl font-bold text-white text-center py-4">AI ANALYTICS</h1>
+        <nav class="mt-8 space-y-2">
+            <a href="#" id="collector-link" class="nav-link nav-link-active">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18V6a2 2 0 012-2h6a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2z"></path></svg>
+                Live Collector
+            </a>
+            <a href="#" id="dashboard-link" class="nav-link">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Dashboard
+            </a>
+            <a href="#" id="logout-link" class="nav-link text-red-400 hover:text-red-300">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Logout
+            </a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+
+        <div id="collector-view" class="fade-in fade-in-loaded">
+            <main class="w-full max-w-5xl mx-auto card-frosted p-6 md:p-10 rounded-2xl shadow-2xl">
+                <header class="text-center mb-8">
+                    <h1 class="text-4xl font-bold text-white">Live Collector</h1>
+                    <p class="text-lg text-slate-400 mt-2">Real-time age & gender detection</p>
+                </header>
+    
+                <div class="mb-6 flex border-b border-slate-700">
+                    <button id="uploadTab" class="py-3 px-6 font-medium text-slate-300 transition-all duration-300 tab-active">
+                        Upload Photo
+                    </button>
+                    <button id="liveTab" class="py-3 px-6 font-medium text-slate-400 hover:text-sky-400 transition-all duration-300">
+                        Live Camera
+                    </button>
+                </div>
+    
+                <div id="uploadSection" class="transition-opacity duration-500">
+                    <div class="mb-6">
+                        <label for="imageUpload" class="file-dropzone w-full p-8 rounded-lg cursor-pointer flex flex-col items-center justify-center text-slate-400" style="border: 2px dashed #475569; transition: all 0.3s ease;">
+                            <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V6a4 4 0 014-4h10a4 4 0 014 4v6a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 16v-4a4 4 0 00-4-4H8a4 4 0 00-4 4v4m16 0h2m-2 0v2m0-2l-4-4m-6 4l4-4"></path></svg>
+                            <span class="font-medium">Click to upload or drag & drop</span>
+                            <span class="text-sm">PNG, JPG, or JPEG</span>
+                        </label>
+                        <input type="file" id="imageUpload" accept="image/png, image/jpeg" class="hidden">
+                    </div>
+                    <button id="predictButton" class="w-full btn-gradient text-white font-bold py-3 px-4 rounded-lg shadow-lg disabled:bg-gray-500 disabled:shadow-none disabled:transform-none" style="background-image: linear-gradient(to right, #3b82f6, #2563eb); transition: all 0.3s ease;">
+                        Detect from Photo
+                    </button>
+                    <div id="uploadResults" class="hidden mt-8 transition-all duration-500">
+                        <div class="w-full">
+                            <h3 class="text-xl font-semibold text-white mb-4">Annotated Image:</h3>
+                            <img id="annotatedImage" src="" alt="Image with predictions" class="w-full h-auto rounded-lg shadow-md border-2 border-slate-700">
+                        </div>
+                        <div id="predictions" class="mt-6">
+                            <h3 class="text-xl font-semibold text-white mb-3">Predictions:</h3>
+                            <p id="predictionText" class="text-slate-300 text-lg"></p>
+                        </div>
+                    </div>
+                </div>
+    
+                <div id="liveSection" class="hidden transition-opacity duration-500">
+                    <button id="cameraButton" class="w-full btn-gradient text-white font-bold py-3 px-4 rounded-lg shadow-lg" style="background-image: linear-gradient(to right, #3b82f6, #2563eb); transition: all 0.3s ease;">
+                        Start Camera
+                    </button>
+                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-medium text-white mb-2">Your Camera</h3>
+                            <video id="webcamFeed" class="w-full h-auto rounded-lg shadow-md border-2 border-slate-700 bg-slate-900" autoplay muted playsinline style="transform: scaleX(-1);"></video>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-white mb-2">Processed Feed</h3>
+                            <img id="liveResult" src="https://placehold.co/600x400/0f172a/475569?text=Camera+is+Off" alt="Processed video feed" class="w-full h-auto rounded-lg shadow-md border-2 border-slate-700">
+                        </div>
+                    </div>
+                    <div class="mt-6 p-4 bg-slate-900 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-medium text-white">Live Predictions:</h3>
+                            <p id="livePredictionText" class="text-slate-300 text-lg">Camera is off</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-3">
+                            <h3 class="text-lg font-medium text-white">Database Status:</h3>
+                            <div class="flex items-center">
+                                <span id="statusDot" class="w-3 h-3 bg-slate-500 rounded-full mr-2 transition-all duration-300"></span>
+                                <p id="dbStatus" class="text-slate-300 text-lg">Not connected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div id="loader" class="hidden flex justify-center items-center my-6">
+                    <div class="w-8 h-8 border-4 border-slate-600 border-t-sky-400 rounded-full spin"></div>
+                    <span class="ml-3 text-slate-300 text-lg">Processing...</span>
+                </div>
+                <div id="errorMessage" class="hidden bg-red-800/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg relative my-4" role="alert">
+                    <strong class="font-bold">Error:</strong>
+                    <span class="block sm:inline" id="errorText"></span>
+                </div>
+            </main>
+        </div>
+
+        <div id="dashboard-view" class="hidden fade-in">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold text-white">Audience Analytics Dashboard</h1>
+                <button id="refreshButton" class="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-sky-400 hover:border-sky-400 transition-all duration-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2.086a10.001 10.001 0 00-16.422-3.082m16.422 3.082L19.5 13.5M3.5 13.5L4 18v-5m16 0h-5.5"></path></svg>
+                </button>
+            </header>
+        
+            <div id="dashboard-loader" class="text-center py-20 fade-in-loaded">
+                <div class="w-12 h-12 border-4 border-slate-600 border-t-sky-400 rounded-full spin mx-auto"></div>
+                <p class="text-lg text-slate-400 mt-4">Loading data from database...</p>
+            </div>
+        
+            <div id="no-data" class="hidden text-center p-12 card-dark rounded-lg fade-in">
+                <h2 class="text-2xl font-semibold text-white">No data found.</h2>
+                <p class="text-slate-400 mt-2">Go to the Collector and use the camera to get some data.</p>
+            </div>
+        
+            <div id="dashboardContent" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="card-dark p-6 rounded-lg shadow-lg">
+                        <h3 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Total Detections</h3>
+                        <p id="totalDetections" class="text-4xl font-bold text-white mt-2">0</p>
+                    </div>
+                    <div class="card-dark p-6 rounded-lg shadow-lg">
+                        <h3 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Most Seen Gender</h3>
+                        <p id="modalGender" class="text-4xl font-bold text-sky-400 mt-2">--</p>
+                    </div>
+                    <div class="card-dark p-6 rounded-lg shadow-lg">
+                        <h3 class="text-sm font-medium text-slate-400 uppercase tracking-wider">Most Seen Age Group</h3>
+                        <p id="modalAge" class="text-4xl font-bold text-green-400 mt-2">--</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="card-dark p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-semibold text-white mb-4">Gender Breakdown</h2>
+                        <div class="h-80">
+                            <canvas id="genderChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card-dark p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-semibold text-white mb-4">Age Breakdown</h2>
+                        <div class="h-80">
+                            <canvas id="ageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+    
+    <script>
+        // --- Initialize Firebase ---
+        //
+        // !! IMPORTANT !!
+        // PASTE YOUR `firebaseConfig` OBJECT FROM STEP 1 HERE
+        //
+        const firebaseConfig = {
+          apiKey: "AIzaSyA41KMREQqYNRUXmmMLqmnBqMuzchEbQPI",
+          authDomain: "audience-analytics-c4fcc.firebaseapp.com",
+          projectId: "audience-analytics-c4fcc",
+          storageBucket: "audience-analytics-c4fcc.firebasestorage.app",
+          messagingSenderId: "426489718694",
+          appId: "1:426489718694:web:56c0252024c60da9e65167",
+          measurementId: "G-0G4P9JSNCY"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        console.log("Firebase initialized.");
+        // --- End of Firebase Init ---
+
+        // --- API URLs ---
+        const UPLOAD_API_URL = 'http://127.0.0.1:5000/predict';
+        const FRAME_API_URL = 'http://127.0.0.1:5000/predict_frame';
+
+        // --- State Variables ---
+        let isCameraOn = false;
+        let videoStream = null;
+        let processingInterval = null;
+        const canvas = document.createElement('canvas');
+        let genderChartInstance = null;
+        let ageChartInstance = null;
+        let currentClientId = null;
+
+        // --- DOM Elements: Main Views ---
+        const collectorLink = document.getElementById('collector-link');
+        const dashboardLink = document.getElementById('dashboard-link');
+        const collectorView = document.getElementById('collector-view');
+        const dashboardView = document.getElementById('dashboard-view');
+
+        // --- DOM Elements: Collector ---
+        const imageUpload = document.getElementById('imageUpload');
+        const predictButton = document.getElementById('predictButton');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const uploadResults = document.getElementById('uploadResults');
+        const predictionText = document.getElementById('predictionText');
+        const annotatedImage = document.getElementById('annotatedImage');
+        const uploadTab = document.getElementById('uploadTab');
+        const liveTab = document.getElementById('liveTab');
+        const uploadSection = document.getElementById('uploadSection');
+        const liveSection = document.getElementById('liveSection');
+        const cameraButton = document.getElementById('cameraButton');
+        const webcamFeed = document.getElementById('webcamFeed');
+        const liveResult = document.getElementById('liveResult');
+        const livePredictionText = document.getElementById('livePredictionText');
+        const dbStatus = document.getElementById('dbStatus');
+        const statusDot = document.getElementById('statusDot');
+
+        // --- DOM Elements: Dashboard ---
+        const dashboardLoader = document.getElementById('dashboard-loader');
+        const noData = document.getElementById('no-data');
+        const dashboardContent = document.getElementById('dashboardContent');
+        const totalDetectionsEl = document.getElementById('totalDetections');
+        const modalGenderEl = document.getElementById('modalGender');
+        const modalAgeEl = document.getElementById('modalAge');
+        const refreshButton = document.getElementById('refreshButton');
+        const logoutLink = document.getElementById('logout-link');
+
+        // --- Event Listener: View Switching ---
+        collectorLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Show Collector, Hide Dashboard
+            collectorView.classList.remove('hidden');
+            collectorView.classList.add('fade-in-loaded'); // Make it visible
+            dashboardView.classList.add('hidden');
+            dashboardView.classList.remove('fade-in-loaded'); // Hide it
+            // Update nav link styles
+            collectorLink.classList.add('nav-link-active');
+            dashboardLink.classList.remove('nav-link-active');
+            // Stop camera if user switches away
+            stopWebcam();
+        });
+
+        dashboardLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Show Dashboard, Hide Collector
+            dashboardView.classList.remove('hidden');
+            dashboardView.classList.add('fade-in-loaded'); // Make it visible
+            collectorView.classList.add('hidden');
+            collectorView.classList.remove('fade-in-loaded'); // Hide it
+            // Update nav link styles
+            dashboardLink.classList.add('nav-link-active');
+            collectorLink.classList.remove('nav-link-active');
+            // Load dashboard data
+            loadDashboardData();
+        });
+        
+        // --- Event Listener: Collector ---
+        uploadTab.addEventListener('click', () => {
+            liveSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+            uploadTab.classList.add('tab-active', 'text-sky-400');
+            liveTab.classList.remove('tab-active', 'text-sky-400');
+            stopWebcam(); // Ensure webcam is off when switching to upload
+        });
+        liveTab.addEventListener('click', () => {
+            uploadSection.classList.add('hidden');
+            liveSection.classList.remove('hidden');
+            liveTab.classList.add('tab-active', 'text-sky-400');
+            uploadTab.classList.remove('tab-active', 'text-sky-400');
+            // No need to start webcam here, it's started by its own button
+        });
+        predictButton.addEventListener('click', handlePhotoUpload);
+        cameraButton.addEventListener('click', () => {
+            if (isCameraOn) stopWebcam(); else startWebcam();
+        });
+        imageUpload.addEventListener('change', (e) => {
+            const label = e.target.closest('label').querySelector('span');
+            if (e.target.files.length > 0) label.textContent = e.target.files[0].name;
+            else label.textContent = 'Click to upload or drag & drop';
+        });
+        
+
+        // --- Event Listener: Dashboard ---
+        refreshButton.addEventListener('click', loadDashboardData);
+
+        // --- Auth Guard and Logout ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User is signed in.
+                console.log('User logged in:', user.email, 'UID:', user.uid);
+                currentClientId = user.uid; // Store the UID globally
+                // Initially load the collector view (default)
+                collectorView.classList.remove('hidden');
+                collectorView.classList.add('fade-in-loaded');
+            } else {
+                // User is signed out. Redirect to login.
+                console.log('No user logged in, redirecting to login.html');
+                window.location.href = 'login.html';
+            }
+        });
+
+        logoutLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await auth.signOut();
+                // onAuthStateChanged will handle the redirect to login.html
+                console.log('User signed out.');
+            } catch (error) {
+                console.error('Error signing out:', error);
+                alert('Error signing out. Please try again.');
+            }
+        });
+        // --- End Auth Guard and Logout ---
+
+        // --- Collector Functions ---
+        async function handlePhotoUpload() {
+            const file = imageUpload.files[0];
+            if (!file) { showError('Please select an image file first.'); return; }
+            if (!currentClientId) { showError('Login required to upload photos.'); return; }
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('client_id', currentClientId); // Pass client_id for file uploads too
+
+            hideError(); showLoader(); predictButton.disabled = true; uploadResults.classList.add('hidden');
+            try {
+                const response = await fetch(UPLOAD_API_URL, { method: 'POST', body: formData });
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || `HTTP error! Status: ${response.status}`); }
+                const data = await response.json();
+                displayUploadResults(data);
+                // For file uploads, app.py's /predict endpoint is assumed to save.
+                // If your /predict endpoint does NOT save to DB, you would uncomment this:
+                // savePredictionsToDb(data.predictions); 
+            } catch (error) {
+                showError(error.message || 'An unknown error occurred.');
+            } finally {
+                hideLoader(); predictButton.disabled = false;
+            }
+        }
+        function displayUploadResults(data) {
+            predictionText.textContent = data.predictions.join(', ') || 'No faces detected.';
+            annotatedImage.src = data.annotated_image;
+            uploadResults.classList.remove('hidden');
+        }
+        async function startWebcam() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 600, height: 400 }, audio: false });
+                webcamFeed.srcObject = videoStream;
+                isCameraOn = true;
+                cameraButton.textContent = 'Stop Camera';
+                cameraButton.style.backgroundImage = 'linear-gradient(to right, #ef4444, #dc2626)'; // Red gradient
+                livePredictionText.textContent = 'Starting up...';
+                setDbStatus('connecting', 'Connecting...');
+                webcamFeed.onloadedmetadata = () => {
+                    canvas.width = webcamFeed.videoWidth;
+                    canvas.height = webcamFeed.videoHeight;
+                    processingInterval = setInterval(processFrame, 500);
+                };
+            } catch (err) {
+                console.error('Error accessing webcam:', err);
+                showError('Could not access the webcam. Please check permissions.');
+                setDbStatus('error', 'Camera access denied.');
+            }
+        }
+        function stopWebcam() {
+            if (!isCameraOn) return; // Already off
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            webcamFeed.srcObject = null;
+            isCameraOn = false;
+            clearInterval(processingInterval);
+            processingInterval = null;
+            cameraButton.textContent = 'Start Camera';
+            cameraButton.style.backgroundImage = 'linear-gradient(to right, #3b82f6, #2563eb)'; // Blue gradient
+            livePredictionText.textContent = 'Camera is off';
+            liveResult.src = 'https://placehold.co/600x400/0f172a/475569?text=Camera+is+Off';
+            setDbStatus('disconnected', 'Not connected');
+        }
+
+        // === UPDATED processFrame FUNCTION ===
+        async function processFrame() {
+            if (!isCameraOn || webcamFeed.readyState < 3 || !processingInterval) return;
+
+            // Ensure currentClientId is available FIRST
+            if (!currentClientId) {
+                setDbStatus('error', 'Error: No client ID. Please log in.');
+                console.error('No currentClientId available for sending frame to backend.');
+                stopWebcam(); // Stop camera if there's no client ID
+                return;
+            }
+
+            const context = canvas.getContext('2d');
+            // Mirror the webcam feed horizontally for the processed output
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(webcamFeed, 0, 0, canvas.width, canvas.height);
+            context.setTransform(1, 0, 0, 1, 0, 0); // Reset transform after drawing
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            try {
+                const response = await fetch(FRAME_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image_data: imageData,
+                        client_id: currentClientId // <--- THIS IS THE CRUCIAL ADDITION
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json(); // Try to get more specific error from backend
+                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                liveResult.src = data.annotated_image;
+                livePredictionText.textContent = data.predictions.join(', ') || 'No faces detected.';
+                
+                // IMPORTANT: app.py now saves live camera predictions to Firestore.
+                // Do NOT call savePredictionsToDb here for live frames to avoid duplicate entries.
+                // savePredictionsToDb(data.predictions); // <-- THIS LINE REMAINS COMMENTED OUT FOR LIVE CAMERA
+
+                setDbStatus('success', 'Processed & Saved!'); // Indicate successful processing AND saving by backend
+            } catch (err) {
+                console.error('Error sending frame to backend:', err);
+                setDbStatus('error', `Error: ${err.message || 'Processing failed.'}`);
+            }
+        }
+        // === END UPDATED processFrame FUNCTION ===
+
+        // This function is still available for the 'Upload Photo' tab if app.py's /predict endpoint
+        // does not handle saving, or if you want client-side saving for specific cases.
+        async function savePredictionsToDb(predictions) {
+            if (!currentClientId) {
+                console.warn('No client ID available to save data.');
+                setDbStatus('error', 'Login required to save data.');
+                return;
+            }
+            if (!predictions || predictions.length === 0) {
+                setDbStatus('idle', 'No face detected.');
+                return;
+            }
+            const parts = predictions[0].split(', ');
+            const gender = parts[0];
+            const age = parts[1];
+            try {
+                const docRef = await db.collection('clients').doc(currentClientId).collection('sightings').add({
+                    gender: gender,
+                    age_range: age,
+                    timestamp: new Date()
+                });
+                setDbStatus('success', `Saved: ${gender}, ${age}`);
+            } catch (e) {
+                console.error("Error writing to Firestore: ", e);
+                setDbStatus('error', 'Error saving to DB.');
+            }
+        }
+        function setDbStatus(type, message) {
+            dbStatus.textContent = message;
+            statusDot.classList.remove('bg-slate-500', 'bg-yellow-400', 'bg-green-400', 'bg-red-500', 'status-dot-green');
+            if (type === 'connecting') statusDot.classList.add('bg-yellow-400');
+            else if (type === 'success') statusDot.classList.add('status-dot-green');
+            else if (type === 'error') statusDot.classList.add('bg-red-500');
+            else statusDot.classList.add('bg-slate-500');
+        }
+        function showLoader() { loader.classList.remove('hidden'); }
+        function hideLoader() { loader.classList.add('hidden'); }
+        function showError(message) { errorText.textContent = message; errorMessage.classList.remove('hidden'); }
+        function hideError() { errorMessage.classList.add('hidden'); }
+
+        // --- Dashboard Functions ---
+        async function loadDashboardData() {
+            if (!currentClientId) {
+                console.warn('No client ID available for dashboard.');
+                dashboardLoader.classList.add('hidden');
+                noData.classList.remove('hidden');
+                dashboardContent.classList.add('hidden');
+                return;
+            }
+
+            dashboardLoader.classList.remove('hidden');
+            noData.classList.add('hidden');
+            dashboardContent.classList.add('hidden');
+
+            try {
+                const querySnapshot = await db.collection('clients').doc(currentClientId).collection('sightings')
+                                            .orderBy('timestamp', 'desc') // Order by latest first
+                                            .get();
+                
+                const sightings = [];
+                querySnapshot.forEach(doc => {
+                    sightings.push(doc.data());
+                });
+
+                if (sightings.length === 0) {
+                    noData.classList.remove('hidden');
+                    dashboardContent.classList.add('hidden');
+                } else {
+                    noData.classList.add('hidden');
+                    dashboardContent.classList.remove('hidden');
+                    displayDashboardMetrics(sightings);
+                    renderCharts(sightings);
+                }
+
+            } catch (error) {
+                console.error("Error loading dashboard data:", error);
+                // Maybe display a general error on the dashboard if data fails to load
+                noData.querySelector('h2').textContent = 'Error loading data.';
+                noData.querySelector('p').textContent = 'Please try refreshing or check your console.';
+                noData.classList.remove('hidden');
+                dashboardContent.classList.add('hidden');
+            } finally {
+                dashboardLoader.classList.add('hidden');
+            }
+        }
+
+        function displayDashboardMetrics(sightings) {
+            totalDetectionsEl.textContent = sightings.length;
+
+            const genders = {};
+            const ageRanges = {};
+
+            sightings.forEach(sighting => {
+                genders[sighting.gender] = (genders[sighting.gender] || 0) + 1;
+                ageRanges[sighting.age_range] = (ageRanges[sighting.age_range] || 0) + 1;
+            });
+
+            const mostSeenGender = Object.keys(genders).reduce((a, b) => genders[a] > genders[b] ? a : b, null);
+            const mostSeenAge = Object.keys(ageRanges).reduce((a, b) => ageRanges[a] > ageRanges[b] ? a : b, null);
+
+            modalGenderEl.textContent = mostSeenGender || '--';
+            modalAgeEl.textContent = mostSeenAge || '--';
+        }
+
+        function renderCharts(sightings) {
+            // Group data for charts
+            const genderCounts = {};
+            const ageCounts = {};
+
+            sightings.forEach(sighting => {
+                genderCounts[sighting.gender] = (genderCounts[sighting.gender] || 0) + 1;
+                ageCounts[sighting.age_range] = (ageCounts[sighting.age_range] || 0) + 1;
+            });
+
+            // Prepare data for Chart.js
+            const genderLabels = Object.keys(genderCounts);
+            const genderData = Object.values(genderCounts);
+
+            const ageLabels = Object.keys(ageCounts).sort((a,b) => {
+                // Custom sort for age ranges like "15-20", "20-25" etc.
+                const parseAge = (range) => parseInt(range.split('-')[0]);
+                return parseAge(a) - parseAge(b);
+            });
+            const ageData = ageLabels.map(label => ageCounts[label]);
+
+
+            // Gender Chart
+            if (genderChartInstance) genderChartInstance.destroy();
+            const genderCtx = document.getElementById('genderChart').getContext('2d');
+            genderChartInstance = new Chart(genderCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: genderLabels,
+                    datasets: [{
+                        data: genderData,
+                        backgroundColor: ['#38bdf8', '#fb7185', '#94a3b8'], // Sky-400, Rose-400, Slate-400
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0' // text-slate-200
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Age Chart
+            if (ageChartInstance) ageChartInstance.destroy();
+            const ageCtx = document.getElementById('ageChart').getContext('2d');
+            ageChartInstance = new Chart(ageCtx, {
+                type: 'bar',
+                data: {
+                    labels: ageLabels,
+                    datasets: [{
+                        label: 'Number of Detections',
+                        data: ageData,
+                        backgroundColor: '#4ade80', // Green-400
+                        borderColor: '#22c55e', // Green-500
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0' // text-slate-200
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#475569' }, // slate-600
+                            ticks: { color: '#cbd5e1' } // slate-300
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#475569' }, // slate-600
+                            ticks: { color: '#cbd5e1' } // slate-300
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize dashboard when the view is first loaded if there's an active user
+        if (currentClientId && dashboardView.classList.contains('fade-in-loaded')) {
+            loadDashboardData();
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - AI Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; /* bg-slate-900 */ }
+    </style>
+</head>
+<body class="text-gray-200 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-lg border border-slate-700">
+        <h1 class="text-3xl font-bold text-center text-white">Create Your Client Account</h1>
+        
+        <div>
+            <label for="email" class="block text-sm font-medium text-slate-300">Email address</label>
+            <input id="email" name="email" type="email" required class="mt-1 block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+        
+        <div>
+            <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+            <input id="password" name="password" type="password" required class="mt-1 block w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+        
+        <div id="errorMessage" class="hidden text-sm text-red-400"></div>
+
+        <button id="signupButton" class="w-full py-3 px-4 font-bold text-white bg-sky-600 rounded-lg hover:bg-sky-700 transition-all duration-300">
+            Create Account
+        </button>
+
+        <p class="text-sm text-center text-slate-400">
+            Already have an account? 
+            <a href="login.html" class="font-medium text-sky-400 hover:text-sky-500">Log in</a>
+        </p>
+    </div>
+
+    <script>
+        // --- Initialize Firebase ---
+        // !! PASTE YOUR `firebaseConfig` OBJECT HERE !!
+    const firebaseConfig = {
+      apiKey: "AIzaSyA41KMREQqYNRUXmmMLqmnBqMuzchEbQPI",
+      authDomain: "audience-analytics-c4fcc.firebaseapp.com",
+      projectId: "audience-analytics-c4fcc",
+      storageBucket: "audience-analytics-c4fcc.firebasestorage.app",
+      messagingSenderId: "426489718694",
+      appId: "1:426489718694:web:56c0252024c60da9e65167",
+      measurementId: "G-0G4P9JSNCY"
+    };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- Get DOM Elements ---
+        const emailEl = document.getElementById('email');
+        const passwordEl = document.getElementById('password');
+        const signupButton = document.getElementById('signupButton');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // --- Sign-up Logic ---
+        signupButton.addEventListener('click', async () => {
+            const email = emailEl.value;
+            const password = passwordEl.value;
+
+            errorMessage.classList.add('hidden'); // Hide old errors
+            
+            try {
+                // 1. Create the user in Firebase Auth
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                console.log('User created in Auth:', user.uid);
+
+                // 2. Create the client document in Firestore
+                // We will use the 'user.uid' as the unique 'clientId'
+                const clientRef = db.collection('clients').doc(user.uid);
+                
+                await clientRef.set({
+                    email: user.email,
+                    created_at: new Date()
+                    // We will add the 'collector.js' embed script here later
+                });
+
+                console.log('Client document created in Firestore for:', user.uid);
+
+                // 3. Success! Redirect to the login page.
+                alert('Success! Your account has been created. Please log in.');
+                window.location.href = 'login.html';
+
+            } catch (error) {
+                console.error(error);
+                errorMessage.textContent = error.message;
+                errorMessage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

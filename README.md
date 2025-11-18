@@ -156,10 +156,6 @@ This project is designed for cost-effective deployment leveraging free tiers of 
 
 Contributions, issues, and feature requests are welcome\! Feel free to check the [issues page](https://github.com/architpr/ai-audience-analytics/issues) on GitHub.
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/architpr/ai-audience-analytics/blob/master/LICENSE) file for details.
-
 ---
 
 Made with ❤️ by Archit
